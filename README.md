@@ -127,7 +127,7 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 
 ### Example
 
-```hcl
+```
 module "jenkins" {
   source = "./modules/jenkins"
 
@@ -169,3 +169,4 @@ module "jenkins" {
     }
   ]
 }
+```
