@@ -57,7 +57,7 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
     4. Click on the **Public IP** of the associated EC2 instance and append port `8080` to the URL (e.g., `http://<Public-IP>:8080`).
 
 ---
-#Resources
+# Resources
 
 | Category                               | Type     |
 |----------------------------------------|----------|
@@ -114,7 +114,7 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 
 
 
-#Output
+# Output
 
 | Name                          | Description                                             |
 |-------------------------------|---------------------------------------------------------|
@@ -127,9 +127,9 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 
 ### Example
 
-```
+```hcl
 module "jenkins" {
-  source = "jenkins"
+  source = "umairshaikh45/jenkins/aws"
 
   # Override defaults if needed
   jenkins_url           = "http://jenkins.example.com:8080/"
@@ -170,3 +170,11 @@ module "jenkins" {
   ]
 }
 ```
+
+## Authors
+
+Module is maintained by [Umair Shaikh](https://github.com/umairshaikh45/).
+
+## License
+
+Apache 2 Licensed. See [LICENSE](https://github.com/umairshaikh45/terraform-aws-jenkins/blob/Master/LICENSE) for full details.

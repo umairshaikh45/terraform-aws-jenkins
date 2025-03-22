@@ -149,7 +149,7 @@ resource "aws_efs_mount_target" "jenkins-efs-mount" {
 # ------Task definition ECS-----
 resource "aws_ecs_task_definition" "Job" {
   family = "jenkins"
-  container_definitions = templatefile("templates/jenkins.json.tpl", {
+  container_definitions = templatefile("./templates/jenkins.json.tpl", {
     image                    = "jenkins/jenkins@${data.docker_registry_image.jenkins.sha256_digest}",
     aws_log_group            = aws_cloudwatch_log_group.Jenkins.id,
     aws_region               = var.region,
@@ -266,7 +266,7 @@ resource "aws_launch_template" "launch_template" {
   name_prefix   = "lc_Jenkins"
   instance_type = var.instance_type
   image_id =  length(var.ami_id) > 0 ? var.ami_id : local.ami_id
-  user_data     = base64encode("${templatefile("script/instance_setup.sh", { cluster_name = "${aws_ecs_cluster.jenkins.name}"})}")
+  user_data     = base64encode("${templatefile("./script/instance_setup.sh", { cluster_name = "${aws_ecs_cluster.jenkins.name}"})}")
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.this["jenkins-ingress"].id, aws_security_group.this["jenkins-efs"].id, aws_security_group.this["jenkins-egress"].id, aws_security_group.this["jenkins-agent"].id]
