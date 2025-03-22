@@ -123,13 +123,13 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 ---
 
 
-## Usage
+# Usage
 
 ### Example
 
----
+```
 module "jenkins" {
-  source = "./modules/jenkins"
+  source = "jenkins"
 
   # Override defaults if needed
   jenkins_url           = "http://jenkins.example.com:8080/"
@@ -169,3 +169,4 @@ module "jenkins" {
     }
   ]
 }
+```
