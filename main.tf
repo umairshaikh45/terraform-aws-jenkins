@@ -45,7 +45,8 @@ data "aws_iam_policy" "jenkins" {
   for_each = toset([
     "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceEventsRole",
     "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole",
-    "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+    "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role",
+    "arn:aws:iam::aws:policy/AmazonS3FullAccess"
   ])
   arn = each.key
 }
@@ -266,7 +267,12 @@ resource "aws_launch_template" "launch_template" {
   name_prefix   = "lc_Jenkins"
   instance_type = var.instance_type
   image_id =  length(var.ami_id) > 0 ? var.ami_id : local.ami_id
-  user_data     = base64encode("${templatefile("${path.module}/script/instance_setup.sh", { cluster_name = "${aws_ecs_cluster.jenkins.name}"})}")
+  user_data     = base64encode("${templatefile("${path.module}/script/instance_setup.sh", {
+    cluster_name    = aws_ecs_cluster.jenkins.name,
+    backup_enabled  = var.backup_enabled,
+    backup_bucket_name = var.backup_bucket_name,
+    backup_schedule = var.backup_schedule
+  })}")
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.this["jenkins-ingress"].id, aws_security_group.this["jenkins-efs"].id, aws_security_group.this["jenkins-egress"].id, aws_security_group.this["jenkins-agent"].id]
@@ -285,6 +291,20 @@ resource "aws_launch_template" "launch_template" {
 resource "aws_cloudwatch_log_group" "Jenkins" {
   name              = var.cloudwatch_name
   retention_in_days = var.retention_in_days
+}
+
+resource "aws_s3_bucket" "backup" {
+  count  = var.backup_enabled ? 1 : 0
+  bucket = var.backup_bucket_name
+}
+
+resource "aws_s3_bucket_public_access_block" "backup" {
+  count  = var.backup_enabled ? 1 : 0
+  bucket = aws_s3_bucket.backup[0].id
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls  = true
+  restrict_public_buckets = true
 }
 
 
