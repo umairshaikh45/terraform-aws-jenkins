@@ -26,9 +26,6 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 - **CloudWatch Integration:**
   - Logs are forwarded to CloudWatch with customizable retention periods.
 
-- **Backup:**
-  - Optional automated backups of Jenkins data to an S3 bucket on a configurable schedule.
-
 - **Customization:**
   - All major settings, such as instance sizes, security rules, and Jenkins configurations, can be overridden.
 
@@ -113,9 +110,6 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 | `jenkins_slave_agent_port`  | Port configuration for Jenkins slave agents.           | `string`              | `"8090"`                      | No       |
 | `cpu`                       | CPU to allocate for Jenkins in Docker.                 | `number`              | `500`                         | No       |
 | `memory`                    | Memory to allocate for Jenkins in Docker.              | `number`              | `1024`                        | No       |
-| `backup_enabled`           | Enable automated backups to S3.                         | `bool`                | `false`                       | No       |
-| `backup_bucket_name`       | Name of the S3 bucket used for backups.                 | `string`              | `""`                          | No       |
-| `backup_schedule`          | Cron expression for the backup job.                     | `string`              | `"0 3 * * *"`                 | No       |
 | `security_groups`           | Security group configurations for Jenkins.             | `list(object({...}))` | See default                   | No       |
 
 
@@ -146,9 +140,6 @@ module "jenkins" {
   efs_performance_mode  = "generalPurpose"
   efs_throughput_mode   = "bursting"
   retention_in_days     = 14
-  backup_enabled        = true
-  backup_bucket_name    = "jenkins-backups"
-  backup_schedule       = "0 3 * * *"
 
   # Add additional security groups if needed
   additional_security_groups = [

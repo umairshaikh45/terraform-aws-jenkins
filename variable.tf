@@ -249,20 +249,3 @@ variable "additional_security_groups" {
   }))
   default = []
 }
-variable "backup_enabled" {
-  description = "Whether to enable Jenkins backup to S3"
-  type        = bool
-  default     = false
-}
-
-variable "backup_bucket_name" {
-  description = "S3 bucket name for Jenkins backups"
-  type        = string
-  default     = ""
-}
-
-variable "backup_schedule" {
-  description = "Cron expression for backup job"
-  type        = string
-  default     = "0 3 * * *"
-}
