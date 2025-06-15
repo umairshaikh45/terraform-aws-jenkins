@@ -2,12 +2,12 @@
 variable "region" {
   description = "Region of the deployment"
   type        = string
-  default = "us-east-1"
+  default     = "us-east-1"
 }
 variable "ami_id" {
   description = "ECS optamized ami"
   type        = string
-  default = ""
+  default     = ""
 }
 variable "enable_update_plugins" {
   type    = bool
@@ -91,6 +91,21 @@ variable "jenkins_url" {
   type        = string
   default     = "http://localhost:8080/"
 }
+variable "backup_schedule" {
+  description = "Backup schedule from efs to s3"
+  type        = string
+  default     = "cron(0 6 ? * MON-FRI *)"
+}
+variable "enable_backup" {
+  description = "Enable or disable backup to S3 via DataSync"
+  type        = bool
+  default     = false
+}
+variable "force_delete_s3" {
+  description = "Delete backup from s3"
+  type        = bool
+  default     = true
+}
 variable "security_groups" {
   description = "List of security group configurations"
   type = list(object({
@@ -159,6 +174,7 @@ variable "security_groups" {
           from_port   = 2049
           to_port     = 2049
           protocol    = "tcp"
+          self        = true
           cidr_blocks = []
           description = "EFS access"
         },
@@ -188,6 +204,7 @@ variable "security_groups" {
           from_port   = 2049
           to_port     = 2049
           protocol    = "tcp"
+          self        = true
           cidr_blocks = []
           description = "EFS inbound"
         }

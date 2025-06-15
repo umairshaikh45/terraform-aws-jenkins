@@ -1,6 +1,6 @@
 <!-- @format -->
 
-# Jenkins Infrastructure Terraform Module
+# Jenkins on ECS
 
 This Terraform module sets up a robust Jenkins infrastructure in AWS, including security groups, ECS task definitions, EFS for persistent storage, and other supporting components. It is designed to be flexible, allowing users to override defaults and customize the deployment while providing sensible defaults for common use cases.
 
@@ -28,6 +28,9 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 
 - **Customization:**
   - All major settings, such as instance sizes, security rules, and Jenkins configurations, can be overridden.
+
+- **Backup:**
+  - Backup Jenkins data from EFS to S3 using AWS DataSync, scheduled with a configurable cron expression.
 
 ---
 ## Plugins Updte
@@ -76,6 +79,8 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 | aws_autoscaling_group                  | Resource |
 | aws_launch_template                    | Resource |
 | aws_cloudwatch_log_group               | Resource |
+| aws_s3_bucket                          | Resource |
+| random_id                              | Resource |
 | aws_region                             | Data     |
 | docker_registry_image                  | Data     |
 | aws_subnets                            | Data     |
@@ -85,6 +90,14 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 | aws_iam_policy_document                | Data     |
 | aws_iam_policy                         | Data     |
 
+
+# Modules
+
+| Module         |
+|----------------|
+|backup_tasks    |
+|efs_location    |
+|s3_location     |
 
 # Input
 
@@ -111,6 +124,9 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 | `cpu`                       | CPU to allocate for Jenkins in Docker.                 | `number`              | `500`                         | No       |
 | `memory`                    | Memory to allocate for Jenkins in Docker.              | `number`              | `1024`                        | No       |
 | `security_groups`           | Security group configurations for Jenkins.             | `list(object({...}))` | See default                   | No       |
+| `backup_schedule`           | Cron expression to set backup schedule.                | `string`              | `cron(0 6 ? * MON-FRI *)`     | No       |
+| `enable_backup`             | Enable back to S3 from EFS.                            | `bool`                | `false`                       | No       |
+| `force_delete_s3`           | Force delete data from S3 before destroying bucket.    | `bool`                | `true`                        | No       |
 
 
 
