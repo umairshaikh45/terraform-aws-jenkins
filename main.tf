@@ -1,8 +1,8 @@
 
 locals {
   combined_security_groups = concat(var.security_groups, var.additional_security_groups)
-  subnet_cidr_blocks = [for subnet in data.aws_subnet.public : subnet.cidr_block]
-  ami_id = data.aws_ssm_parameter.ecs_ami.value
+  subnet_cidr_blocks       = [for subnet in data.aws_subnet.public : subnet.cidr_block]
+  ami_id                   = data.aws_ssm_parameter.ecs_ami.value
 }
 
 data "aws_region" "current" {}
@@ -35,9 +35,11 @@ data "aws_iam_policy_document" "policy" {
     principals {
       type = "Service"
       identifiers = [
-      "ecs-tasks.amazonaws.com",
-      "ecs.amazonaws.com",
-      "ec2.amazonaws.com"]
+        "ecs-tasks.amazonaws.com",
+        "ecs.amazonaws.com",
+        "ec2.amazonaws.com",
+        "datasync.amazonaws.com"
+      ]
     }
   }
 }
@@ -86,7 +88,7 @@ resource "aws_security_group" "this" {
 resource "null_resource" "update_plugins" {
   count = var.enable_update_plugins ? 1 : 0
   provisioner "local-exec" {
-     command = "bash ${path.module}/script/plugins_update.sh"
+    command = "bash ${path.module}/script/plugins_update.sh"
     environment = {
       JENKINS_URL = var.jenkins_url
     }
@@ -179,10 +181,6 @@ resource "aws_ecs_service" "jenkins" {
   desired_count        = 1
   force_new_deployment = true
   depends_on           = [aws_autoscaling_group.asg_jenkins]
-  lifecycle {
-    create_before_destroy = true
-  }
-
 }
 
 #-----Define cluster-----
@@ -210,7 +208,7 @@ resource "aws_ecs_capacity_provider" "cp_ecs_jenkins" {
   name = "provider_cpu"
   auto_scaling_group_provider {
     auto_scaling_group_arn         = aws_autoscaling_group.asg_jenkins.arn
-    managed_termination_protection = "ENABLED"
+    managed_termination_protection = "DISABLED"
 
     managed_scaling {
       maximum_scaling_step_size = 1
@@ -233,7 +231,7 @@ resource "aws_autoscaling_group" "asg_jenkins" {
   health_check_grace_period = 300
   vpc_zone_identifier       = [for subnet in data.aws_subnet.public : subnet.id]
   wait_for_capacity_timeout = "5m"
-  protect_from_scale_in     = true
+  force_delete              = true
 
   mixed_instances_policy {
     instances_distribution {
@@ -265,8 +263,8 @@ resource "aws_autoscaling_group" "asg_jenkins" {
 resource "aws_launch_template" "launch_template" {
   name_prefix   = "lc_Jenkins"
   instance_type = var.instance_type
-  image_id =  length(var.ami_id) > 0 ? var.ami_id : local.ami_id
-  user_data     = base64encode("${templatefile("${path.module}/script/instance_setup.sh", { cluster_name = "${aws_ecs_cluster.jenkins.name}"})}")
+  image_id      = length(var.ami_id) > 0 ? var.ami_id : local.ami_id
+  user_data     = base64encode("${templatefile("${path.module}/script/instance_setup.sh", { cluster_name = "${aws_ecs_cluster.jenkins.name}" })}")
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.this["jenkins-ingress"].id, aws_security_group.this["jenkins-efs"].id, aws_security_group.this["jenkins-egress"].id, aws_security_group.this["jenkins-agent"].id]
@@ -287,4 +285,73 @@ resource "aws_cloudwatch_log_group" "Jenkins" {
   retention_in_days = var.retention_in_days
 }
 
+# -----Backup-----
 
+resource "random_id" "prefix" {
+  count       = var.enable_backup ? 1 : 0
+  byte_length = 2
+}
+
+resource "aws_s3_bucket" "jenkins" {
+  count         = var.enable_backup ? 1 : 0
+  bucket        = "${random_id.prefix[0].hex}-jenkins-backup"
+  force_destroy = var.force_delete_s3
+
+  tags = {
+    Name = "jenkins"
+  }
+}
+module "s3_location" {
+  count  = var.enable_backup ? 1 : 0
+  source = "aws-ia/datasync/aws//modules/datasync-locations"
+
+  s3_locations = [
+    {
+      name          = "datasync-s3"
+      s3_bucket_arn = aws_s3_bucket.jenkins[0].arn
+      subdirectory  = "/"
+      create_role   = true
+      tags          = { project = "datasync-s3" }
+    }
+  ]
+}
+
+
+module "efs_location" {
+  count  = var.enable_backup ? 1 : 0
+  source = "aws-ia/datasync/aws//modules/datasync-locations"
+
+  efs_locations = [
+    {
+      name                           = "datasync-efs"
+      efs_file_system_arn            = aws_efs_file_system.efs.arn
+      ec2_config_subnet_arn          = "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_vpc.current.owner_id}:subnet/${values(data.aws_subnet.public)[0].id}"
+      ec2_config_security_group_arns = [aws_security_group.this["jenkins-efs"].arn, aws_security_group.this["jenkins-egress"].arn]
+      tags                           = { project = "datasync-efs" }
+    }
+  ]
+
+  depends_on = [aws_efs_mount_target.jenkins-efs-mount]
+}
+
+
+module "backup_tasks" {
+  count  = var.enable_backup ? 1 : 0
+  source = "aws-ia/datasync/aws//modules/datasync-task"
+
+  datasync_tasks = [
+    {
+      name                     = "efs_to_s3"
+      source_location_arn      = module.efs_location[0].efs_locations["datasync-efs"].arn
+      destination_location_arn = module.s3_location[0].s3_locations["datasync-s3"].arn
+
+      options = {
+        posix_permissions = "NONE"
+        uid               = "NONE"
+        gid               = "NONE"
+      }
+
+      schedule_expression = var.backup_schedule
+    }
+  ]
+}
