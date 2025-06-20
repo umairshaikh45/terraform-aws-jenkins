@@ -194,3 +194,7 @@ Module is maintained by [Umair Shaikh](https://github.com/umairshaikh45/).
 ## License
 
 Apache 2 Licensed. See [LICENSE](https://github.com/umairshaikh45/terraform-aws-jenkins/blob/Master/LICENSE) for full details.
+
+## Diagram
+
+![Architecture](images/Diagram.png)
