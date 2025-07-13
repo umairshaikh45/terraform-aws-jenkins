@@ -1,12 +1,37 @@
 <!-- @format -->
 
-# Jenkins on ECS
+# Jenkins on AWS ECS Using Terraform (Highly Available Setup)
 
 This Terraform module sets up a robust Jenkins infrastructure in AWS, including security groups, ECS task definitions, EFS for persistent storage, and other supporting components. It is designed to be flexible, allowing users to override defaults and customize the deployment while providing sensible defaults for common use cases.
 
 ---
 
-## Features
+## Why Use This Module?
+
+Managing Jenkins on AWS can be complex — this module simplifies it with:
+
+- A fully containerized setup on ECS
+- Persistent and shareable EFS storage
+- Automated backup to S3 using DataSync
+- CloudWatch-based centralized logging
+- Automatic Jenkins plugin management
+- Complete customization via Terraform variables
+
+**Whether you're setting up a small CI/CD instance or scaling Jenkins in production, this module gives you flexibility and infrastructure as code.**
+
+## What's Included
+
+| Component             | Purpose                                 |
+|-----------------------|-----------------------------------------|
+| ECS Cluster           | Hosts the Jenkins container             |
+| ECS Task Definition   | Defines Jenkins container config        |
+| EFS File System       | Persistent Jenkins home directory       |
+| CloudWatch Logs       | Streams container logs                  |
+| S3 + DataSync         | Optional backup of Jenkins data         |
+| IAM Roles             | Secure access to AWS services           |
+| Security Groups       | VPC traffic rules for Jenkins           |
+
+## Key Features of This Jenkins on ECS Module
 
 - **Jenkins Deployment:**
   - Deploy Jenkins as a containerized service on ECS.
@@ -33,7 +58,7 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
   - Backup Jenkins data from EFS to S3 using AWS DataSync, scheduled with a configurable cron expression.
 
 ---
-## Plugins Updte
+## Automatic Jenkins Plugin Updates
  - In order for automatic plugings update to work need to set `enable_update_plugins` to `true` by default it is set to `false`.
  - The Jenkins should be reacble using your own DNS to resolve `jenkins_url` if using Loadbalancer its target group should point to the instance runnig on ECS cluster.
 
@@ -44,7 +69,7 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 - Java runtime
 - Terraform
 
-## Note
+## Jenkins Configuration Tips
 
 - **Job Execution on Master and Slaves:**
   - By default, all Jenkins jobs will run on the Master node. To enable jobs to run on dynamically provisioned slaves, you need to download and configure the **Amazon Elastic Container Service (ECS) / Fargate** [Amazon Elastic Container Service (ECS) / Fargate)](https://plugins.jenkins.io/amazon-ecs/) on Jenkins.
@@ -93,11 +118,11 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 
 # Modules
 
-| Module         |
-|----------------|
-|backup_tasks    |
-|efs_location    |
-|s3_location     |
+| Module Name     | Purpose                                          |
+|-----------------|--------------------------------------------------|
+| `backup_tasks`  | Handles DataSync job setup for EFS to S3 backups |
+| `efs_location`  | Creates the EFS location needed for DataSync     |
+| `s3_location`   | Configures the S3 location for backup            |
 
 # Input
 
@@ -139,9 +164,12 @@ This Terraform module sets up a robust Jenkins infrastructure in AWS, including 
 ---
 
 
-# Usage
+# How to Use This Terraform Module for Jenkins on AWS
 
 ### Example
+
+<details>
+  <summary><strong>🔧 Module</strong></summary>
 
 ```hcl
 module "jenkins" {
@@ -186,15 +214,16 @@ module "jenkins" {
   ]
 }
 ```
+</details>
 
-## Authors
+## Maintainer
 
 Module is maintained by [Umair Shaikh](https://github.com/umairshaikh45/).
 
-## License
+## License: Apache 2.0
 
 Apache 2 Licensed. See [LICENSE](https://github.com/umairshaikh45/terraform-aws-jenkins/blob/Master/LICENSE) for full details.
 
-## Diagram
+## Jenkins on ECS Architecture Diagram
 
 ![Architecture](images/Diagram.png)
