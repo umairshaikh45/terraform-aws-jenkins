@@ -226,4 +226,4 @@ Apache 2 Licensed. See [LICENSE](https://github.com/umairshaikh45/terraform-aws-
 
 ## Jenkins on ECS Architecture Diagram
 
-![Architecture](images/Diagram.png)
+![Jenkins ECS Architecture](./images/Diagram.png)
