@@ -90,13 +90,13 @@ resource "null_resource" "update_plugins" {
   provisioner "local-exec" {
     command = "bash ${path.module}/script/plugins_update.sh"
     environment = {
-      JENKINS_URL = var.jenkins_url
+      JENKINS_URL = var.jenkins_environment_variables["JENKINS_URL"]
     }
   }
 
   triggers = {
     sha256_digest = data.docker_registry_image.jenkins.sha256_digest
-    jenkins_url   = var.jenkins_url
+    jenkins_url   = var.jenkins_environment_variables["JENKINS_URL"]
   }
 }
 
@@ -152,14 +152,13 @@ resource "aws_efs_mount_target" "jenkins-efs-mount" {
 resource "aws_ecs_task_definition" "Job" {
   family = "jenkins"
   container_definitions = templatefile("${path.module}/templates/jenkins.json.tpl", {
-    image                    = "jenkins/jenkins@${data.docker_registry_image.jenkins.sha256_digest}",
-    aws_log_group            = aws_cloudwatch_log_group.Jenkins.id,
-    aws_region               = var.region,
-    aws_prefix               = aws_cloudwatch_log_group.Jenkins.name
-    jenkins_slave_agent_port = var.jenkins_slave_agent_port
-    cpu                      = var.cpu
-    memory                   = var.memory
-    jenkins_url              = var.jenkins_url
+    image                         = "jenkins/jenkins@${data.docker_registry_image.jenkins.sha256_digest}",
+    aws_log_group                 = aws_cloudwatch_log_group.Jenkins.id,
+    aws_region                    = var.region,
+    aws_prefix                    = aws_cloudwatch_log_group.Jenkins.name
+    jenkins_environment_variables = var.jenkins_environment_variables,
+    cpu                           = var.cpu
+    memory                        = var.memory
   })
   task_role_arn = aws_iam_role.host_role_jenkins.arn
   volume {
@@ -180,7 +179,9 @@ resource "aws_ecs_service" "jenkins" {
   task_definition      = aws_ecs_task_definition.Job.arn
   desired_count        = 1
   force_new_deployment = true
-  depends_on           = [aws_autoscaling_group.asg_jenkins]
+   lifecycle {
+    create_before_destroy = true
+  }
 }
 
 #-----Define cluster-----

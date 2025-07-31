@@ -6,24 +6,14 @@
     "memory": ${memory},
     "essential": true,
     "user":"jenkins",
-     "environment": [
-        {
-          "name": "JAVA_OPTS",
-          "value": "-Djenkins.install.runSetupWizard=false"
-        },
-        {
-          "name": "JENKINS_SLAVE_AGENT_PORT",
-          "value": "${jenkins_slave_agent_port}"
-        },
-        {
-          "name": "TRY_UPGRADE_IF_NO_MARKER",
-          "value": "true"
-        },
-         {
-          "name": "JENKINS_URL",
-          "value": "${jenkins_url}"
-        }
-      ],
+    "environment": [
+%{ for key, value in jenkins_environment_variables ~}
+  {
+    "name": "${key}",
+    "value": "${value}"
+  }%{ if key != keys(jenkins_environment_variables)[length(jenkins_environment_variables) - 1] },%{ endif }
+%{ endfor ~}
+],
     "volumesFrom": [],
     "portMappings": [
       {
@@ -33,8 +23,8 @@
       },
       {
         "protocol": "tcp",
-        "containerPort": ${jenkins_slave_agent_port},
-        "hostPort": ${jenkins_slave_agent_port}
+        "containerPort": ${jenkins_environment_variables["JENKINS_SLAVE_AGENT_PORT"]},
+        "hostPort": ${jenkins_environment_variables["JENKINS_SLAVE_AGENT_PORT"]}
       }
     ],
       "mountPoints": [
