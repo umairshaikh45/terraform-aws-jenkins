@@ -126,32 +126,34 @@ Managing Jenkins on AWS can be complex — this module simplifies it with:
 
 # Input
 
-| Name                        | Description                                            | Type                  | Default                       | Required |
-|-----------------------------|--------------------------------------------------------|-----------------------|-------------------------------|----------|
-| `jenkins_url`               | The URL for the Jenkins instance.                      | `string`              | `"http://localhost:8080/"`    | No       |
-| `region`                    | AWS region for the deployment.                         | `string`              | `"us-east-1"`                 | No       |
-| `vpc_id`                    | The ID of the VPC to deploy resources into.            | `string`              | `""`                          | Yes      |
-| `cloudwatch_name`           | CloudWatch log group name for Jenkins logs.            | `string`              | `"/jenkins/logs"`             | No       |
-| `efs_creation_token`        | Name of the EFS file system.                           | `string`              | `"jenkins-efs"`               | No       |
-| `efs_performance_mode`      | EFS performance mode.                                  | `string`              | `"generalPurpose"`            | No       |
-| `efs_throughput_mode`       | EFS throughput mode.                                   | `string`              | `"bursting"`                  | No       |
-| `retention_in_days`         | Number of days to retain CloudWatch logs.              | `number`              | `7`                           | No       |
-| `additional_security_groups`| Additional security group configurations.              | `list(object({...}))` | `[]`                          | No       |
-| `ami_id`                    | Specify your own ECS-optimized AMI for the module.     | `string`              | `""`                          | No       |
-| `enable_update_plugins`     | Enables automatic plugin updates in Jenkins.           | `bool`                | `false`                       | No       |
-| `min_instance_size`         | Minimum number of EC2 instances.                       | `number`              | `1`                           | No       |
-| `desired_service_count`     | Desired number of ECS services.                        | `number`              | `1`                           | No       |
-| `max_instance_size`         | Maximum number of EC2 instances.                       | `number`              | `1`                           | No       |
-| `instance_type`             | Type of EC2 instance.                                  | `string`              | `"t2.medium"`                 | No       |
-| `cloudwatch_environment`    | CloudWatch environment.                                | `string`              | `"Sandbox"`                   | No       |
-| `jenkins_image`             | Jenkins Docker image for the master.                   | `string`              | `"jenkins/jenkins:lts"`       | No       |
-| `jenkins_slave_agent_port`  | Port configuration for Jenkins slave agents.           | `string`              | `"8090"`                      | No       |
-| `cpu`                       | CPU to allocate for Jenkins in Docker.                 | `number`              | `500`                         | No       |
-| `memory`                    | Memory to allocate for Jenkins in Docker.              | `number`              | `1024`                        | No       |
-| `security_groups`           | Security group configurations for Jenkins.             | `list(object({...}))` | See default                   | No       |
-| `backup_schedule`           | Cron expression to set backup schedule.                | `string`              | `cron(0 6 ? * MON-FRI *)`     | No       |
-| `enable_backup`             | Enable back to S3 from EFS.                            | `bool`                | `false`                       | No       |
-| `force_delete_s3`           | Force delete data from S3 before destroying bucket.    | `bool`                | `true`                        | No       |
+| Name                            | Description                                            | Type                  | Default                       | Required |
+|---------------------------------|--------------------------------------------------------|-----------------------|-------------------------------|----------|
+| `region`                        | AWS region for the deployment.                         | `string`              | `"us-east-1"`                 | No       |
+| `vpc_id`                        | The ID of the VPC to deploy resources into.            | `string`              | `""`                          | Yes      |
+| `cloudwatch_name`               | CloudWatch log group name for Jenkins logs.            | `string`              | `"/jenkins/logs"`             | No       |
+| `efs_creation_token`            | Name of the EFS file system.                           | `string`              | `"jenkins-efs"`               | No       |
+| `efs_performance_mode`          | EFS performance mode.                                  | `string`              | `"generalPurpose"`            | No       |
+| `efs_throughput_mode`           | EFS throughput mode.                                   | `string`              | `"bursting"`                  | No       |
+| `retention_in_days`             | Number of days to retain CloudWatch logs.              | `number`              | `7`                           | No       |
+| `additional_security_groups`    | Additional security group configurations.              | `list(object({...}))` | `[]`                          | No       |
+| `ami_id`                        | Specify your own ECS-optimized AMI for the module.     | `string`              | `""`                          | No       |
+| `enable_update_plugins`         | Enables automatic plugin updates in Jenkins.           | `bool`                | `false`                       | No       |
+| `min_instance_size`             | Minimum number of EC2 instances.                       | `number`              | `1`                           | No       |
+| `desired_service_count`         | Desired number of ECS services.                        | `number`              | `1`                           | No       |
+| `max_instance_size`             | Maximum number of EC2 instances.                       | `number`              | `1`                           | No       |
+| `instance_type`                 | Type of EC2 instance.                                  | `string`              | `"t2.medium"`                 | No       |
+| `cloudwatch_environment`        | CloudWatch environment.                                | `string`              | `"Sandbox"`                   | No       |
+| `jenkins_image`                 | Jenkins Docker image for the master.                   | `string`              | `"jenkins/jenkins:lts"`       | No       |
+| `cpu`                           | CPU to allocate for Jenkins in Docker.                 | `number`              | `500`                         | No       |
+| `memory`                        | Memory to allocate for Jenkins in Docker.              | `number`              | `1024`                        | No       |
+| `security_groups`               | Security group configurations for Jenkins.             | `list(object({...}))` | See default                   | No       |
+| `backup_schedule`               | Cron expression to set backup schedule.                | `string`              | `cron(0 6 ? * MON-FRI *)`     | No       |
+| `enable_backup`                 | Enable back to S3 from EFS.                            | `bool`                | `false`                       | No       |
+| `force_delete_s3`               | Force delete data from S3 before destroying bucket.    | `bool`                | `true`                        | No       |
+| `jenkins_environment_variables` | Map of environment variables to inject into the Jenkins| `map(string)`         | See Example Section           | No       |
+
+
+
 
 
 
@@ -176,7 +178,6 @@ module "jenkins" {
   source = "umairshaikh45/jenkins/aws"
 
   # Override defaults if needed
-  jenkins_url           = "http://jenkins.example.com:8080/"
   region                = "us-east-1"
   vpc_id                = "vpc-12345678"
   cloudwatch_name       = "/jenkins/logs"
@@ -184,6 +185,14 @@ module "jenkins" {
   efs_performance_mode  = "generalPurpose"
   efs_throughput_mode   = "bursting"
   retention_in_days     = 14
+
+  # Jenkins container environment variables (Default)
+  jenkins_environment_variables = {
+    JAVA_OPTS                = "-Djenkins.install.runSetupWizard=false"
+    JENKINS_SLAVE_AGENT_PORT = "8090"
+    TRY_UPGRADE_IF_NO_MARKER = "true"
+    JENKINS_URL              = "http://localhost:8080/"
+  }
 
   # Add additional security groups if needed
   additional_security_groups = [
@@ -226,4 +235,5 @@ Apache 2 Licensed. See [LICENSE](https://github.com/umairshaikh45/terraform-aws-
 
 ## Jenkins on ECS Architecture Diagram
 
-![Jenkins ECS Architecture](./images/Diagram.png)
+![Jenkins ECS Architecture](https://raw.githubusercontent.com/umairshaikh45/terraform-aws-jenkins/Master/images/Diagram.png)
+

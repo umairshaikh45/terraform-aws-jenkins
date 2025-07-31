@@ -71,11 +71,6 @@ variable "retention_in_days" {
   type        = number
   default     = 7
 }
-variable "jenkins_slave_agent_port" {
-  description = "Environment port configuration for slave"
-  type        = string
-  default     = "8090"
-}
 variable "cpu" {
   description = "Amount of cpu to be use in docker for jenkins"
   type        = number
@@ -85,11 +80,6 @@ variable "memory" {
   description = "Amount of memory to be use in docker for jenkins"
   type        = number
   default     = 1024
-}
-variable "jenkins_url" {
-  description = "Jenkins url configuration"
-  type        = string
-  default     = "http://localhost:8080/"
 }
 variable "backup_schedule" {
   description = "Backup schedule from efs to s3"
@@ -105,6 +95,16 @@ variable "force_delete_s3" {
   description = "Delete backup from s3"
   type        = bool
   default     = true
+}
+variable "jenkins_environment_variables" {
+  description = "Map of Jenkins environment variables to inject into ECS container."
+  type        = map(string)
+  default = {
+    JAVA_OPTS                = "-Djenkins.install.runSetupWizard=false"
+    JENKINS_SLAVE_AGENT_PORT = "8090"
+    TRY_UPGRADE_IF_NO_MARKER = "true"
+    JENKINS_URL              = "http://localhost:8080/"
+  }
 }
 variable "security_groups" {
   description = "List of security group configurations"
