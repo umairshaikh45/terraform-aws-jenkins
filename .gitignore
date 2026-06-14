@@ -1,12 +1,33 @@
+# Terraform working directories and provider cache
 **/.terraform/*
-*.DS_Store
-*.log
-*.terraform.lock.hcl
+.terraform.lock.hcl
+
+# Terragrunt working directory (contains downloaded providers + copied module files)
+.terragrunt-cache/
+
+# State files — never commit state to source control
 *.tfstate
 *.tfstate.*
+
+# Var files may contain secrets
 *.tfvars
+*.tfvars.json
+
+# Plan files
 *tfplan*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files
 *_override.tf
 *_override.tf.json
 override.tf
 override.tf.json
+
+# macOS
+.DS_Store
+
+# Editor / OS noise
+*.log
