@@ -3,10 +3,24 @@
 set -o pipefail
 set -exu
 
-
-# Assign ec2 instance to proper clusters
+# Register this instance with the correct ECS cluster
 echo "ECS_CLUSTER=${cluster_name}" >> /etc/ecs/ecs.config
 
-
-
-
+# Apply ECS agent tuning — spot draining, image cleanup, logging limits
+cat >> /etc/ecs/ecs.config << 'ECSEOF'
+ECS_CONTAINER_INSTANCE_PROPAGATE_TAGS_FROM=ec2_instance
+ECS_ENABLE_SPOT_INSTANCE_DRAINING=true
+ECS_ENABLE_TASK_CPU_MEM_LIMIT=false
+ECS_ENABLE_UNTRACKED_IMAGE_CLEANUP=true
+ECS_ENGINE_TASK_CLEANUP_WAIT_DURATION=1h
+ECS_IMAGE_CLEANUP_INTERVAL=5m
+ECS_IMAGE_PULL_BEHAVIOR=once
+ECS_IMAGE_PULL_INACTIVITY_TIMEOUT=5m
+ECS_LOGLEVEL=warn
+ECS_LOG_MAX_FILE_SIZE_MB=16
+ECS_LOG_MAX_ROLL_COUNT=64
+ECS_LOG_ROLLOVER_TYPE=size
+ECS_MINIMUM_CLEANUP_AGE=3h
+ECS_PULL_DEPENDENT_CONTAINERS_UPFRONT=true
+ECS_UPDATES_ENABLED=true
+ECSEOF

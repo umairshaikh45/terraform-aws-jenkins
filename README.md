@@ -26,6 +26,7 @@ Managing Jenkins on AWS can be complex — this module simplifies it with:
 | ECS Cluster           | Hosts the Jenkins container             |
 | ECS Task Definition   | Defines Jenkins container config        |
 | EFS File System       | Persistent Jenkins home directory       |
+| ALB (optional)        | Public-facing load balancer for Jenkins |
 | CloudWatch Logs       | Streams container logs                  |
 | S3 + DataSync         | Optional backup of Jenkins data         |
 | IAM Roles             | Secure access to AWS services           |
@@ -59,28 +60,28 @@ Managing Jenkins on AWS can be complex — this module simplifies it with:
 
 ---
 ## Automatic Jenkins Plugin Updates
- - In order for automatic plugings update to work need to set `enable_update_plugins` to `true` by default it is set to `false`.
- - The Jenkins should be reacble using your own DNS to resolve `jenkins_url` if using Loadbalancer its target group should point to the instance runnig on ECS cluster.
+ - In order for automatic plugins update to work need to set `enable_update_plugins` to `true` by default it is set to `false`.
+ - The Jenkins should be reachable using your own DNS to resolve `jenkins_url` if using Loadbalancer its target group should point to the instance running on ECS cluster.
 
 ---
 
-## Pre-requiset
-- Docker 
-- Java runtime
-- Terraform
+## Prerequisites
+- Terraform >= 1.3
+- AWS CLI configured with appropriate permissions
+- Java runtime (only required when `enable_update_plugins = true`)
 
 ## Jenkins Configuration Tips
 
 - **Job Execution on Master and Slaves:**
   - By default, all Jenkins jobs will run on the Master node. To enable jobs to run on dynamically provisioned slaves, you need to download and configure the **Amazon Elastic Container Service (ECS) / Fargate** [Amazon Elastic Container Service (ECS) / Fargate)](https://plugins.jenkins.io/amazon-ecs/) on Jenkins.
-  - After installing the plugin, navigate to `Manage Jenkins` and select the `Clouds` section. 
+  - After installing the plugin, navigate to `Manage Jenkins` and select the `Clouds` section.
   - Create a new cloud configuration and set it up according to your requirements.
 
 
 - **Accessing Jenkins Without DNS:**
   - If you do not have a DNS configured, you can access Jenkins manually:
     1. Log in to the AWS Management Console.
-    2. Navigate to the **ECS** section and locate the `jenkins_cpu` cluster.
+    2. Navigate to the **ECS** section and locate the `jenkins` cluster.
     3. Select the running task and go to the **Networking** tab.
     4. Click on the **Public IP** of the associated EC2 instance and append port `8080` to the URL (e.g., `http://<Public-IP>:8080`).
 
@@ -104,10 +105,12 @@ Managing Jenkins on AWS can be complex — this module simplifies it with:
 | aws_autoscaling_group                  | Resource |
 | aws_launch_template                    | Resource |
 | aws_cloudwatch_log_group               | Resource |
+| aws_lb                                 | Resource |
+| aws_lb_target_group                    | Resource |
+| aws_lb_listener                        | Resource |
 | aws_s3_bucket                          | Resource |
 | random_id                              | Resource |
 | aws_region                             | Data     |
-| docker_registry_image                  | Data     |
 | aws_subnets                            | Data     |
 | aws_subnet                             | Data     |
 | aws_vpc                                | Data     |
@@ -126,42 +129,50 @@ Managing Jenkins on AWS can be complex — this module simplifies it with:
 
 # Input
 
-| Name                            | Description                                            | Type                  | Default                       | Required |
-|---------------------------------|--------------------------------------------------------|-----------------------|-------------------------------|----------|
-| `region`                        | AWS region for the deployment.                         | `string`              | `"us-east-1"`                 | No       |
-| `vpc_id`                        | The ID of the VPC to deploy resources into.            | `string`              | `""`                          | Yes      |
-| `cloudwatch_name`               | CloudWatch log group name for Jenkins logs.            | `string`              | `"/jenkins/logs"`             | No       |
-| `efs_creation_token`            | Name of the EFS file system.                           | `string`              | `"jenkins-efs"`               | No       |
-| `efs_performance_mode`          | EFS performance mode.                                  | `string`              | `"generalPurpose"`            | No       |
-| `efs_throughput_mode`           | EFS throughput mode.                                   | `string`              | `"bursting"`                  | No       |
-| `retention_in_days`             | Number of days to retain CloudWatch logs.              | `number`              | `7`                           | No       |
-| `additional_security_groups`    | Additional security group configurations.              | `list(object({...}))` | `[]`                          | No       |
-| `ami_id`                        | Specify your own ECS-optimized AMI for the module.     | `string`              | `""`                          | No       |
-| `enable_update_plugins`         | Enables automatic plugin updates in Jenkins.           | `bool`                | `false`                       | No       |
-| `min_instance_size`             | Minimum number of EC2 instances.                       | `number`              | `1`                           | No       |
-| `desired_service_count`         | Desired number of ECS services.                        | `number`              | `1`                           | No       |
-| `max_instance_size`             | Maximum number of EC2 instances.                       | `number`              | `1`                           | No       |
-| `instance_type`                 | Type of EC2 instance.                                  | `string`              | `"t2.medium"`                 | No       |
-| `cloudwatch_environment`        | CloudWatch environment.                                | `string`              | `"Sandbox"`                   | No       |
-| `jenkins_image`                 | Jenkins Docker image for the master.                   | `string`              | `"jenkins/jenkins:lts"`       | No       |
-| `cpu`                           | CPU to allocate for Jenkins in Docker.                 | `number`              | `500`                         | No       |
-| `memory`                        | Memory to allocate for Jenkins in Docker.              | `number`              | `1024`                        | No       |
-| `security_groups`               | Security group configurations for Jenkins.             | `list(object({...}))` | See default                   | No       |
-| `backup_schedule`               | Cron expression to set backup schedule.                | `string`              | `cron(0 6 ? * MON-FRI *)`     | No       |
-| `enable_backup`                 | Enable back to S3 from EFS.                            | `bool`                | `false`                       | No       |
-| `force_delete_s3`               | Force delete data from S3 before destroying bucket.    | `bool`                | `true`                        | No       |
-| `jenkins_environment_variables` | Map of environment variables to inject into the Jenkins| `map(string)`         | See Example Section           | No       |
-
-
-
-
+| Name                            | Description                                                                                      | Type                  | Default                        | Required |
+|---------------------------------|--------------------------------------------------------------------------------------------------|-----------------------|--------------------------------|----------|
+| `vpc_id`                        | The ID of the VPC to deploy resources into.                                                      | `string`              | —                              | **Yes**  |
+| `region`                        | AWS region for the deployment.                                                                   | `string`              | `"us-east-1"`                  | No       |
+| `instance_type`                 | EC2 instance type for ECS container instances.                                                   | `string`              | `"t3.medium"`                  | No       |
+| `min_instance_size`             | Minimum number of EC2 instances in the ASG.                                                      | `number`              | `1`                            | No       |
+| `max_instance_size`             | Maximum number of EC2 instances in the ASG.                                                      | `number`              | `1`                            | No       |
+| `on_demand_percentage`          | Percentage of on-demand instances above the base. `100` = all on-demand; lower values use Spot.  | `number`              | `100`                          | No       |
+| `ami_id`                        | Custom ECS-optimized AMI ID. Leave empty to use the latest Amazon Linux 2 ECS AMI via SSM.       | `string`              | `""`                           | No       |
+| `desired_service_count`         | Desired number of running ECS tasks.                                                             | `number`              | `1`                            | No       |
+| `cpu`                           | CPU units reserved for the Jenkins container (1024 = 1 vCPU).                                   | `number`              | `500`                          | No       |
+| `memory`                        | Memory (MiB) reserved for the Jenkins container.                                                 | `number`              | `1024`                         | No       |
+| `jenkins_image`                 | Jenkins Docker image.                                                                            | `string`              | `"jenkins/jenkins:lts"`        | No       |
+| `jenkins_environment_variables` | Map of environment variables injected into the Jenkins ECS container.                            | `map(string)`         | See example below              | No       |
+| `enable_update_plugins`         | Run the Jenkins plugin update script after deployment. Requires Java on the Terraform host.      | `bool`                | `false`                        | No       |
+| `create_alb`                    | Create an Application Load Balancer in front of Jenkins.                                         | `bool`                | `false`                        | No       |
+| `certificate_arn`               | ACM certificate ARN for HTTPS. When set, HTTP automatically redirects to HTTPS.                  | `string`              | `""`                           | No       |
+| `alb_internal`                  | Create an internal (non-internet-facing) ALB.                                                    | `bool`                | `false`                        | No       |
+| `alb_deletion_protection`       | Enable ALB deletion protection to prevent accidental destruction.                                | `bool`                | `false`                        | No       |
+| `cloudwatch_name`               | CloudWatch log group name for Jenkins logs.                                                      | `string`              | `"/Jenkins"`                   | No       |
+| `retention_in_days`             | Number of days to retain CloudWatch logs.                                                        | `number`              | `30`                           | No       |
+| `efs_creation_token`            | Unique creation token for the EFS filesystem.                                                    | `string`              | `"jenkins_efs"`                | No       |
+| `efs_performance_mode`          | EFS performance mode: `generalPurpose` or `maxIO`.                                               | `string`              | `"generalPurpose"`             | No       |
+| `efs_throughput_mode`           | EFS throughput mode: `bursting` or `provisioned`.                                                | `string`              | `"bursting"`                   | No       |
+| `enable_backup`                 | Enable EFS backup to S3 via DataSync.                                                            | `bool`                | `false`                        | No       |
+| `backup_schedule`               | Cron expression for the EFS-to-S3 DataSync backup task.                                          | `string`              | `"cron(0 6 ? * MON-FRI *)"`    | No       |
+| `force_delete_s3`               | Allow Terraform to destroy the backup S3 bucket even when it contains objects.                   | `bool`                | `false`                        | No       |
+| `security_groups`               | Security group configurations attached to Jenkins instances. `cidr_blocks = []` falls back to VPC subnet CIDRs. | `list(object({...}))` | See default SGs below | No       |
+| `additional_security_groups`    | Extra security groups merged alongside the defaults. Use this to add rules without replacing the full list. | `list(object({...}))` | `[]`              | No       |
 
 
 # Output
 
-| Name                          | Description                                             |
-|-------------------------------|---------------------------------------------------------|
-| `security_group_ids`           | Map of security group names to their IDs.              |
+| Name                       | Description                                                         |
+|----------------------------|---------------------------------------------------------------------|
+| `security_group_ids`       | Map of security group name to ID for all managed SGs.              |
+| `ecs_cluster_name`         | Name of the Jenkins ECS cluster.                                    |
+| `ecs_cluster_arn`          | ARN of the Jenkins ECS cluster.                                     |
+| `efs_id`                   | ID of the EFS filesystem used for `jenkins_home` persistence.       |
+| `cloudwatch_log_group_name`| CloudWatch log group name for Jenkins container logs.               |
+| `alb_dns_name`             | DNS name of the ALB. `null` when `create_alb = false`.              |
+| `alb_arn`                  | ARN of the ALB. `null` when `create_alb = false`.                   |
+| `jenkins_url`              | Jenkins access URL (HTTP or HTTPS depending on `certificate_arn`).  |
+| `backup_s3_bucket`         | S3 bucket name used for EFS backups. `null` when `enable_backup = false`. |
 
 ---
 
@@ -171,30 +182,102 @@ Managing Jenkins on AWS can be complex — this module simplifies it with:
 ### Example
 
 <details>
-  <summary><strong>🔧 Module</strong></summary>
+  <summary><strong>🔧 Basic — Jenkins with ALB (HTTP)</strong></summary>
 
 ```hcl
 module "jenkins" {
   source = "umairshaikh45/jenkins/aws"
 
-  # Override defaults if needed
-  region                = "us-east-1"
-  vpc_id                = "vpc-12345678"
-  cloudwatch_name       = "/jenkins/logs"
-  efs_creation_token    = "jenkins-efs"
-  efs_performance_mode  = "generalPurpose"
-  efs_throughput_mode   = "bursting"
-  retention_in_days     = 14
+  vpc_id = "vpc-12345678"
 
-  # Jenkins container environment variables (Default)
+  # Compute
+  instance_type        = "t3.medium"
+  min_instance_size    = 1
+  max_instance_size    = 2
+  on_demand_percentage = 100  # set lower (e.g. 50) to mix in Spot instances
+
+  # ECS task
+  cpu    = 1024
+  memory = 2048
+
+  # ALB — exposes Jenkins publicly on port 80
+  create_alb = true
+
+  # Jenkins container
   jenkins_environment_variables = {
-    JAVA_OPTS                = "-Djenkins.install.runSetupWizard=false"
+    JAVA_OPTS                = "-Djenkins.install.runSetupWizard=false -Xmx1536m"
     JENKINS_SLAVE_AGENT_PORT = "8090"
     TRY_UPGRADE_IF_NO_MARKER = "true"
-    JENKINS_URL              = "http://localhost:8080/"
+    JENKINS_URL              = "http://<your-alb-dns-name>/"
   }
+}
 
-  # Add additional security groups if needed
+output "jenkins_url" {
+  value = module.jenkins.jenkins_url
+}
+```
+</details>
+
+<details>
+  <summary><strong>🔒 ALB with HTTPS (ACM certificate)</strong></summary>
+
+```hcl
+module "jenkins" {
+  source = "umairshaikh45/jenkins/aws"
+
+  vpc_id = "vpc-12345678"
+
+  instance_type = "t3.medium"
+  cpu           = 1024
+  memory        = 2048
+
+  # ALB with TLS — HTTP automatically redirects to HTTPS
+  create_alb      = true
+  certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+  jenkins_environment_variables = {
+    JAVA_OPTS                = "-Djenkins.install.runSetupWizard=false -Xmx1536m"
+    JENKINS_SLAVE_AGENT_PORT = "8090"
+    TRY_UPGRADE_IF_NO_MARKER = "true"
+    JENKINS_URL              = "https://jenkins.example.com/"
+  }
+}
+```
+</details>
+
+<details>
+  <summary><strong>💾 With EFS backup to S3</strong></summary>
+
+```hcl
+module "jenkins" {
+  source = "umairshaikh45/jenkins/aws"
+
+  vpc_id = "vpc-12345678"
+
+  create_alb = true
+
+  # Backup Jenkins home to S3 every weekday at 06:00 UTC
+  enable_backup   = true
+  backup_schedule = "cron(0 6 ? * MON-FRI *)"
+  force_delete_s3 = false  # keep backups even after terraform destroy
+}
+
+output "backup_bucket" {
+  value = module.jenkins.backup_s3_bucket
+}
+```
+</details>
+
+<details>
+  <summary><strong>🔧 Custom security groups</strong></summary>
+
+```hcl
+module "jenkins" {
+  source = "umairshaikh45/jenkins/aws"
+
+  vpc_id = "vpc-12345678"
+
+  # Add rules on top of the built-in defaults without replacing them
   additional_security_groups = [
     {
       name = "custom-sg"
@@ -236,4 +319,3 @@ Apache 2 Licensed. See [LICENSE](https://github.com/umairshaikh45/terraform-aws-
 ## Jenkins on ECS Architecture Diagram
 
 ![Jenkins ECS Architecture](https://raw.githubusercontent.com/umairshaikh45/terraform-aws-jenkins/Master/images/Diagram.png)
-
