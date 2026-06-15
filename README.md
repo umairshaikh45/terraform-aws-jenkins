@@ -1,4 +1,4 @@
-# Terraform AWS Jenkins — ECS on EC2 with EFS, ALB, HTTPS & Terragrunt
+# Terraform AWS Jenkins — ECS on EC2 with EFS, ALB & HTTPS 
 
 > Deploy a production-ready **Jenkins CI/CD server on AWS ECS** using Terraform.  
 > Persistent storage via EFS, optional Application Load Balancer with HTTPS, automated S3 backups, CloudWatch logging, and full Terragrunt support.
