@@ -179,13 +179,6 @@ variable "security_groups" {
       name = "jenkins-ingress"
       ingress_rules = [
         {
-          from_port   = 443
-          to_port     = 443
-          protocol    = "tcp"
-          cidr_blocks = ["192.30.252.0/22", "185.199.108.0/22", "140.82.112.0/20", "143.55.64.0/20"]
-          description = "GitHub webhook IPs"
-        },
-        {
           from_port   = 8080
           to_port     = 8080
           protocol    = "tcp"
