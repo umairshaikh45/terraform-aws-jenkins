@@ -1,8 +1,25 @@
 
 locals {
   combined_security_groups = concat(var.security_groups, var.additional_security_groups)
-  subnet_cidr_blocks       = [for subnet in data.aws_subnet.public : subnet.cidr_block]
-  ami_id                   = data.aws_ssm_parameter.ecs_ami.value
+
+  # Subnet selection: explicit list > az_count slice > all subnets in VPC
+  selected_subnet_ids = (
+    length(var.subnet_ids) > 0
+    ? var.subnet_ids
+    : (var.az_count != null
+      ? slice(sort(data.aws_subnets.public.ids), 0, min(var.az_count, length(data.aws_subnets.public.ids)))
+      : data.aws_subnets.public.ids)
+  )
+
+  subnet_cidr_blocks = [for subnet in data.aws_subnet.public : subnet.cidr_block]
+  ami_id             = data.aws_ssm_parameter.ecs_ami.value
+}
+
+check "subnet_inputs_mutually_exclusive" {
+  assert {
+    condition     = !(length(var.subnet_ids) > 0 && var.az_count != null)
+    error_message = "Both subnet_ids and az_count are set. az_count is ignored whenever subnet_ids is non-empty — remove az_count to avoid confusion."
+  }
 }
 
 data "aws_region" "current" {}
@@ -15,7 +32,7 @@ data "aws_subnets" "public" {
 }
 
 data "aws_subnet" "public" {
-  for_each = toset(data.aws_subnets.public.ids)
+  for_each = toset(local.selected_subnet_ids)
   id       = each.value
 }
 
@@ -150,7 +167,7 @@ resource "aws_efs_file_system" "efs" {
 }
 
 resource "aws_efs_mount_target" "jenkins-efs-mount" {
-  for_each        = toset(data.aws_subnets.public.ids)
+  for_each        = toset(local.selected_subnet_ids)
   file_system_id  = aws_efs_file_system.efs.id
   subnet_id       = each.value
   security_groups = [aws_security_group.this["jenkins-efs"].id]
@@ -256,7 +273,7 @@ resource "aws_autoscaling_group" "asg_jenkins" {
   max_size                  = var.max_instance_size
   health_check_type         = "EC2"
   health_check_grace_period = 300
-  vpc_zone_identifier       = [for subnet in data.aws_subnet.public : subnet.id]
+  vpc_zone_identifier       = local.selected_subnet_ids
   wait_for_capacity_timeout = "0"
   force_delete              = true
 
@@ -421,7 +438,7 @@ module "efs_location" {
     {
       name                           = "datasync-efs"
       efs_file_system_arn            = aws_efs_file_system.efs.arn
-      ec2_config_subnet_arn          = "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_vpc.current.owner_id}:subnet/${values(data.aws_subnet.public)[0].id}"
+      ec2_config_subnet_arn          = "arn:aws:ec2:${data.aws_region.current.region}:${data.aws_vpc.current.owner_id}:subnet/${values(data.aws_subnet.public)[0].id}"
       ec2_config_security_group_arns = [aws_security_group.this["jenkins-efs"].arn, aws_security_group.this["jenkins-egress"].arn]
       tags                           = { project = "datasync-efs" }
     }

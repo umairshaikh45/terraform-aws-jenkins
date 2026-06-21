@@ -179,13 +179,6 @@ variable "security_groups" {
       name = "jenkins-ingress"
       ingress_rules = [
         {
-          from_port   = 443
-          to_port     = 443
-          protocol    = "tcp"
-          cidr_blocks = ["192.30.252.0/22", "185.199.108.0/22", "140.82.112.0/20", "143.55.64.0/20"]
-          description = "GitHub webhook IPs"
-        },
-        {
           from_port   = 8080
           to_port     = 8080
           protocol    = "tcp"
@@ -285,6 +278,28 @@ variable "security_groups" {
       }
     }
   ]
+}
+
+variable "subnet_ids" {
+  description = "Explicit subnet IDs for EFS mount targets and the ASG. When provided, auto-discovery of subnets from vpc_id is skipped and az_count is ignored."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for id in var.subnet_ids : can(regex("^subnet-[0-9a-f]{8,17}$", id))])
+    error_message = "Every entry in subnet_ids must be a valid AWS subnet ID (e.g. subnet-0a1b2c3d4e5f). Check for placeholder or mistyped values."
+  }
+}
+
+variable "az_count" {
+  description = "Number of Availability Zones to use. When null (default), all subnets found in the VPC are used. Ignored when subnet_ids is set."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.az_count == null || (var.az_count >= 1 && var.az_count <= 6)
+    error_message = "az_count must be between 1 and 6, or null to use all available AZs."
+  }
 }
 
 variable "additional_security_groups" {
