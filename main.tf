@@ -438,7 +438,7 @@ module "efs_location" {
     {
       name                           = "datasync-efs"
       efs_file_system_arn            = aws_efs_file_system.efs.arn
-      ec2_config_subnet_arn          = "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_vpc.current.owner_id}:subnet/${values(data.aws_subnet.public)[0].id}"
+      ec2_config_subnet_arn          = "arn:aws:ec2:${data.aws_region.current.region}:${data.aws_vpc.current.owner_id}:subnet/${values(data.aws_subnet.public)[0].id}"
       ec2_config_security_group_arns = [aws_security_group.this["jenkins-efs"].arn, aws_security_group.this["jenkins-egress"].arn]
       tags                           = { project = "datasync-efs" }
     }

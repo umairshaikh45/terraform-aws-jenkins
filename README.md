@@ -49,7 +49,6 @@ Internet → ALB (HTTP/HTTPS) → EC2 (Auto Scaling Group) → ECS Cluster → J
 - **Plugin Management** — Automatic Jenkins plugin updates on `terraform apply`
 - **Spot + On-Demand Mix** — ASG supports mixed instance policies for cost optimization
 - **AZ Selection** — Deploy into a specific number of AZs or exact subnets instead of the entire VPC
-- **Terragrunt Ready** — Includes `live/prod/jenkins/` example for Terragrunt deployments
 - **Security Groups** — Pre-configured groups for Jenkins UI, JNLP agents, EFS, and ALB
 
 ---
