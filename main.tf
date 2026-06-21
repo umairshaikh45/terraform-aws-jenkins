@@ -15,6 +15,13 @@ locals {
   ami_id             = data.aws_ssm_parameter.ecs_ami.value
 }
 
+check "subnet_inputs_mutually_exclusive" {
+  assert {
+    condition     = !(length(var.subnet_ids) > 0 && var.az_count != null)
+    error_message = "Both subnet_ids and az_count are set. az_count is ignored whenever subnet_ids is non-empty — remove az_count to avoid confusion."
+  }
+}
+
 data "aws_region" "current" {}
 
 data "aws_subnets" "public" {

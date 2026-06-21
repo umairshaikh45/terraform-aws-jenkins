@@ -152,15 +152,22 @@ module "jenkins" {
   source  = "umairshaikh45/jenkins/aws"
   version = "~> 1.0"
 
-  vpc_id     = "vpc-12345678"
-  az_count   = 2
-  create_alb = true
+  vpc_id   = "vpc-12345678"
+  az_count = 2   # valid range: 1–6; null = all AZs in the VPC
 }
 ```
 
 ### Pinning Exact Subnets
 
-When you need full control — e.g. private subnets, specific AZs, or subnets with a NAT Gateway — pass explicit subnet IDs. This takes precedence over `az_count`.
+When you need full control — e.g. private subnets, specific AZs, or subnets with a NAT Gateway — pass explicit subnet IDs. `subnet_ids` takes full precedence and `az_count` is ignored when this is set.
+
+To find your subnet IDs:
+```bash
+aws ec2 describe-subnets \
+  --filters Name=vpc-id,Values=<vpc-id> \
+  --query 'Subnets[*].{ID:SubnetId,AZ:AvailabilityZone}' \
+  --output table
+```
 
 ```hcl
 module "jenkins" {
@@ -168,10 +175,20 @@ module "jenkins" {
   version = "~> 1.0"
 
   vpc_id     = "vpc-12345678"
-  subnet_ids = ["subnet-0abc1111", "subnet-0def2222"]
-  create_alb = true
+  subnet_ids = ["subnet-0a1b2c3d4e5f6a7b8", "subnet-0b2c3d4e5f6a7b8c9"]
 }
 ```
+
+> **Note:** `subnet_ids` and `az_count` are mutually exclusive. Setting both is valid but `az_count` will be ignored and Terraform will emit a warning at plan time. Use one or the other.
+
+### AZ / Subnet Selection Reference
+
+| `subnet_ids` | `az_count` | Behaviour |
+|---|---|---|
+| `[]` (default) | `null` (default) | All subnets found in the VPC |
+| `[]` | `2` | First 2 subnets from the VPC, sorted by ID |
+| `["subnet-aaa", "subnet-bbb"]` | `null` | Exactly those two subnets |
+| `["subnet-aaa"]` | `1` | Only `subnet-aaa` — `az_count` is ignored, Terraform warns |
 
 ### Custom Security Groups
 
@@ -239,8 +256,8 @@ Requires Java installed on the machine running Terraform, and `JENKINS_URL` must
 | Name | Description | Default | Required |
 |------|-------------|---------|:--------:|
 | `vpc_id` | VPC ID to deploy all resources into | — | Yes |
-| `subnet_ids` | Explicit subnet IDs for EFS and ASG. Overrides `az_count` and auto-discovery | `[]` | No |
-| `az_count` | Number of AZs (subnets) to use from the VPC. `null` = all. Valid range: 1–6 | `null` | No |
+| `subnet_ids` | Explicit subnet IDs for EFS and ASG. Overrides `az_count` completely. Must match `subnet-[0-9a-f]{8,17}` format | `[]` | No |
+| `az_count` | Number of AZs to auto-select from the VPC (1–6). Ignored when `subnet_ids` is set. Setting both emits a Terraform warning | `null` | No |
 | `region` | AWS region for all resources | `"us-east-1"` | No |
 | `instance_type` | EC2 instance type for ECS container instances | `"t3.medium"` | No |
 | `min_instance_size` | Minimum EC2 instances in the Auto Scaling Group | `1` | No |

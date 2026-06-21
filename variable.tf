@@ -284,6 +284,11 @@ variable "subnet_ids" {
   description = "Explicit subnet IDs for EFS mount targets and the ASG. When provided, auto-discovery of subnets from vpc_id is skipped and az_count is ignored."
   type        = list(string)
   default     = []
+
+  validation {
+    condition     = alltrue([for id in var.subnet_ids : can(regex("^subnet-[0-9a-f]{8,17}$", id))])
+    error_message = "Every entry in subnet_ids must be a valid AWS subnet ID (e.g. subnet-0a1b2c3d4e5f). Check for placeholder or mistyped values."
+  }
 }
 
 variable "az_count" {

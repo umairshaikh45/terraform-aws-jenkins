@@ -1,7 +1,6 @@
 # Production Jenkins deployment
 #
 # Usage:
-#   cd live/prod/jenkins
 #   terragrunt init
 #   terragrunt plan
 #   terragrunt apply
@@ -21,6 +20,39 @@ inputs = {
   # ---------------------------------------------------------------------------
   region = "us-east-1"
   vpc_id = "vpc-xxxxxxxxxxxx"
+
+  # ---------------------------------------------------------------------------
+  # Availability Zone / Subnet selection
+  #
+  # These two inputs are MUTUALLY EXCLUSIVE. Setting both is valid but az_count
+  # will be silently ignored and Terraform will emit a warning at plan time.
+  #
+  # Option A — explicit subnets (highest precedence, az_count is ignored):
+  #   Provide real subnet IDs from your VPC. Format: subnet-[0-9a-f]{8,17}.
+  #   Passing a non-existent ID will fail during the data source lookup at plan time.
+  #   Find your subnet IDs:
+  #     aws ec2 describe-subnets \
+  #       --filters Name=vpc-id,Values=<vpc-id> \
+  #       --query 'Subnets[*].{ID:SubnetId,AZ:AvailabilityZone}' \
+  #       --output table
+  #   Example:
+  #     subnet_ids = ["subnet-0a1b2c3d4e5f6a7b8", "subnet-0b2c3d4e5f6a7b8c9"]
+  #
+  # Option B — limit by AZ count (auto-selects N subnets from the VPC, sorted by ID):
+  #   Valid range: 1–6. Use 1 for cheapest single-AZ dev setup, 2+ for HA.
+  #   Example:
+  #     az_count = 2
+  #
+  # Option C — all subnets in the VPC (default, no action needed):
+  #   Leave both as-is below.
+  #
+  # Behaviour summary:
+  #   subnet_ids set            → uses exactly those subnets; az_count ignored
+  #   subnet_ids empty, az_count set → auto-picks N subnets from VPC
+  #   both empty / null         → uses all subnets found in the VPC
+  # ---------------------------------------------------------------------------
+  subnet_ids = []    # leave empty to use auto-discovery (Option B or C)
+  az_count   = null  # null = all AZs; set to 1 or 2 to reduce EFS mount-target costs
 
   # ---------------------------------------------------------------------------
   # Compute
