@@ -280,6 +280,23 @@ variable "security_groups" {
   ]
 }
 
+variable "subnet_ids" {
+  description = "Explicit subnet IDs for EFS mount targets and the ASG. When provided, auto-discovery of subnets from vpc_id is skipped and az_count is ignored."
+  type        = list(string)
+  default     = []
+}
+
+variable "az_count" {
+  description = "Number of Availability Zones to use. When null (default), all subnets found in the VPC are used. Ignored when subnet_ids is set."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.az_count == null || (var.az_count >= 1 && var.az_count <= 6)
+    error_message = "az_count must be between 1 and 6, or null to use all available AZs."
+  }
+}
+
 variable "additional_security_groups" {
   description = "Additional security group configurations merged with the defaults."
   type = list(object({

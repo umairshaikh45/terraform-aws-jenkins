@@ -1,4 +1,4 @@
-# Terraform AWS Jenkins — ECS on EC2 with EFS, ALB, HTTPS & Terragrunt
+# Terraform AWS Jenkins — ECS on EC2 with EFS, ALB & HTTPS 
 
 > Deploy a production-ready **Jenkins CI/CD server on AWS ECS** using Terraform.  
 > Persistent storage via EFS, optional Application Load Balancer with HTTPS, automated S3 backups, CloudWatch logging, and full Terragrunt support.
@@ -48,6 +48,7 @@ Internet → ALB (HTTP/HTTPS) → EC2 (Auto Scaling Group) → ECS Cluster → J
 - **CloudWatch Logging** — Container logs streamed to CloudWatch with configurable retention
 - **Plugin Management** — Automatic Jenkins plugin updates on `terraform apply`
 - **Spot + On-Demand Mix** — ASG supports mixed instance policies for cost optimization
+- **AZ Selection** — Deploy into a specific number of AZs or exact subnets instead of the entire VPC
 - **Terragrunt Ready** — Includes `live/prod/jenkins/` example for Terragrunt deployments
 - **Security Groups** — Pre-configured groups for Jenkins UI, JNLP agents, EFS, and ALB
 
@@ -141,6 +142,37 @@ output "backup_bucket" {
 }
 ```
 
+### Limiting AZ Count (Cost Savings)
+
+By default the module deploys into **all subnets** found in the VPC, which creates one EFS mount target per AZ. Use `az_count` to reduce this — a single-AZ setup is the cheapest option for non-critical environments.
+
+```hcl
+# Use only 2 AZs — 2 EFS mount targets instead of 3+
+module "jenkins" {
+  source  = "umairshaikh45/jenkins/aws"
+  version = "~> 1.0"
+
+  vpc_id     = "vpc-12345678"
+  az_count   = 2
+  create_alb = true
+}
+```
+
+### Pinning Exact Subnets
+
+When you need full control — e.g. private subnets, specific AZs, or subnets with a NAT Gateway — pass explicit subnet IDs. This takes precedence over `az_count`.
+
+```hcl
+module "jenkins" {
+  source  = "umairshaikh45/jenkins/aws"
+  version = "~> 1.0"
+
+  vpc_id     = "vpc-12345678"
+  subnet_ids = ["subnet-0abc1111", "subnet-0def2222"]
+  create_alb = true
+}
+```
+
 ### Custom Security Groups
 
 ```hcl
@@ -207,6 +239,8 @@ Requires Java installed on the machine running Terraform, and `JENKINS_URL` must
 | Name | Description | Default | Required |
 |------|-------------|---------|:--------:|
 | `vpc_id` | VPC ID to deploy all resources into | — | Yes |
+| `subnet_ids` | Explicit subnet IDs for EFS and ASG. Overrides `az_count` and auto-discovery | `[]` | No |
+| `az_count` | Number of AZs (subnets) to use from the VPC. `null` = all. Valid range: 1–6 | `null` | No |
 | `region` | AWS region for all resources | `"us-east-1"` | No |
 | `instance_type` | EC2 instance type for ECS container instances | `"t3.medium"` | No |
 | `min_instance_size` | Minimum EC2 instances in the Auto Scaling Group | `1` | No |

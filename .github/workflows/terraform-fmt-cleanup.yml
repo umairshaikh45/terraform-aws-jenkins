@@ -1,0 +1,86 @@
+name: Terraform Format & Cache Cleanup
+
+# Runs on every push to master, which includes merges from main.
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  fmt-and-clean:
+    name: Format .tf files & remove cached artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full ref so we can push back to the same branch
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.5"
+
+      # ── Format ──────────────────────────────────────────────────────────────
+      - name: terraform fmt
+        run: terraform fmt -recursive -diff
+
+      # ── Cleanup accidentally committed artifacts ──────────────────────────
+      # git rm --cached removes the file from tracking without deleting it from
+      # disk; the existing .gitignore will keep it out on future commits.
+      # xargs -r is a no-op when there is nothing to remove.
+      - name: Remove cached artifacts from git index
+        run: |
+          # .terraform provider cache directories
+          git ls-files | grep -E '(^|/)\.terraform/' \
+            | xargs -r git rm -rf --cached --
+
+          # Terragrunt download cache
+          git ls-files | grep -E '(^|/)\.terragrunt-cache/' \
+            | xargs -r git rm -rf --cached --
+
+          # Terraform state files
+          git ls-files | grep -E '\.tfstate$|\.tfstate\.' \
+            | xargs -r git rm --cached --
+
+          # Plan files
+          git ls-files | grep -iE 'tfplan' \
+            | xargs -r git rm --cached --
+
+          # Crash logs
+          git ls-files | grep -E '^crash\.log$|^crash\..+\.log$' \
+            | xargs -r git rm --cached --
+
+          # macOS .DS_Store
+          git ls-files | grep -F '.DS_Store' \
+            | xargs -r git rm --cached --
+
+          # Generic .log files (excludes crash.log matched above, safe to re-run)
+          git ls-files | grep -E '\.log$' \
+            | xargs -r git rm --cached --
+
+          # Editor swap / temp files
+          git ls-files | grep -E '\.(swp|swo|tmp)$' \
+            | xargs -r git rm --cached --
+
+      # ── Commit & push if anything changed ───────────────────────────────
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Nothing to commit — files are already clean and formatted."
+            exit 0
+          fi
+
+          git commit -m "chore: terraform fmt and remove cache artifacts [skip ci]"
+          git push
